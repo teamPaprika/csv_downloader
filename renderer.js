@@ -39,22 +39,75 @@ ipcRenderer.on('csv-selected', async (event, csvPath) => {
 
   // Split URLs into chunks and download
   for (let i = 0; i < urls.length; i += CONCURRENT_DOWNLOADS) {
+    clearFileStatusList();  // Clear the list for the new batch
     const chunk = urls.slice(i, i + CONCURRENT_DOWNLOADS);
     await Promise.all(chunk.map(url =>
       downloadFile(url).then(updateProgress)
     ));
+    if (!allFilesExist(chunk)) {
+      await sleep(2000);  // Wait for 2 seconds before processing the next chunk
+    }
   }
 
   document.getElementById('status').textContent = 'Download completed!';
 });
 
+function allFilesExist(chunk) {
+  return chunk.every(url => {
+    const fileName = url.split('/').pop();
+    const filePath = `${downloadFolder}/${fileName}`;
+    return fs.existsSync(filePath);
+  });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
 async function downloadFile(url) {
-  if (!downloadFolder) {
-    alert("Please select a download folder first.");
+  const fileName = url.split('/').pop();
+  const filePath = `${downloadFolder}/${fileName}`;
+
+  // Check if file already exists
+  if (fs.existsSync(filePath)) {
+    appendFileStatus(fileName, 'Already exists. Skipping.');
     return;
   }
 
-  const response = await axios.get(url, { responseType: 'arraybuffer' });
-  const fileName = url.split('/').pop();
-  fs.writeFileSync(`${downloadFolder}/${fileName}`, response.data);
+  try {
+    appendFileStatus(fileName, 'Downloading...');
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.arrayBuffer();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(filePath, buffer);
+    updateFileStatus(fileName, 'Downloaded');
+  } catch (error) {
+    console.error(`Failed to download ${url}. Error: ${error.message}`);
+    updateFileStatus(fileName, `Error: ${error.message}`);
+  }
+}
+
+function clearFileStatusList() {
+  const fileStatusList = document.getElementById('fileStatusList');
+  fileStatusList.innerHTML = '';
+}
+
+
+function appendFileStatus(fileName, status) {
+  const fileStatusList = document.getElementById('fileStatusList');
+  const listItem = document.createElement('li');
+  listItem.id = `status-${fileName}`;
+  listItem.textContent = `${fileName}: ${status}`;
+  fileStatusList.appendChild(listItem);
+}
+
+function updateFileStatus(fileName, status) {
+  const listItem = document.getElementById(`status-${fileName}`);
+  if (listItem) {
+    listItem.textContent = `${fileName}: ${status}`;
+  }
 }
