@@ -67,7 +67,8 @@ function sleep(ms) {
 
 
 async function downloadFile(url) {
-  const fileName = url.split('/').pop();
+  let fileName = url.split('/').pop();
+  fileName = sanitizeFileName(fileName);  // Sanitize the filename
   const filePath = path.join(downloadFolder, fileName);
 
   // Check if file already exists
@@ -104,6 +105,16 @@ function appendFileStatus(fileName, status) {
   listItem.id = `status-${fileName}`;
   listItem.textContent = `${fileName}: ${status}`;
   fileStatusList.appendChild(listItem);
+}
+
+function sanitizeFileName(fileName) {
+  // Replace colons and other unwanted characters
+  const sanitized = fileName.replace(/[:*?"<>|]/g, '-');
+
+  // If you want to limit the length, you can use:
+  // return sanitized.substr(0, 250);  // limit to 250 chars
+
+  return sanitized;
 }
 
 function updateFileStatus(fileName, status) {
