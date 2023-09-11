@@ -1,5 +1,6 @@
 const { ipcRenderer } = require('electron');
 const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 
 const CONCURRENT_DOWNLOADS = 10;
@@ -67,7 +68,7 @@ function sleep(ms) {
 
 async function downloadFile(url) {
   const fileName = url.split('/').pop();
-  const filePath = `${downloadFolder}/${fileName}`;
+  const filePath = path.join(downloadFolder, fileName);
 
   // Check if file already exists
   if (fs.existsSync(filePath)) {
